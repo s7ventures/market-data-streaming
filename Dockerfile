@@ -2,7 +2,7 @@ FROM python:3.10
 
 WORKDIR /app
 
-# 1. Install system dependencies (for build + git)
+# 1. Install system dependencies (for build + git + autoconf)
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
 # 2. Clone and build the latest TA-Lib from GitHub
 RUN git clone https://github.com/TA-Lib/ta-lib.git && \
     cd ta-lib && \
+    chmod +x autogen.sh && \
     ./autogen.sh && \
-    # Force ARM-based build/host detection for older config scripts
     ./configure --prefix=/usr/local --build=aarch64-unknown-linux-gnu --host=aarch64-unknown-linux-gnu && \
     make && \
     make install && \

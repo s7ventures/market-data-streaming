@@ -1,6 +1,6 @@
+numpy
+pandas
 fastapi
 uvicorn
 requests
-numpy
-pandas
 ta-lib

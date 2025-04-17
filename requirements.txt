@@ -1,6 +1,8 @@
-numpy
+ib_insync
+boto3
+python-dotenv
 pandas
-fastapi
-uvicorn
-requests
-ta-lib
+tinydb
+yfinance
+Flask
+plotly

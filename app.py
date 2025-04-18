@@ -1,10 +1,19 @@
-from flask import Flask, render_template, jsonify, redirect, url_for
+from flask import Flask, render_template, jsonify, redirect, url_for, request
 import pandas as pd
 from ib_client import IBClient
 import asyncio
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import random
+from pytz import timezone
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Get timezone from .env
+APP_TIMEZONE = os.getenv('APP_TIMEZONE', 'UTC')  # Default to UTC if not set
 
 app = Flask(__name__)
 
@@ -81,16 +90,45 @@ def index():
     # Render the HTML template with the candlestick charts
     return render_template('index.html', figures=figures)
 
+@app.route('/api/available-symbols')
+def available_symbols():
+    ib_client = IBClient()
+    symbols = ib_client.get_available_symbols()
+    return jsonify({'symbols': symbols})
+
 @app.route('/live')
 def live_chart():
-    return render_template('live_chart.html')
+    symbol = request.args.get('symbol', 'SPY')  # Default to SPY if no symbol is provided
+    return render_template('live_chart.html', symbol=symbol)
 
 @app.route('/api/spy-data')
 def spy_data():
-    # Simulated data for SPY prices
-    now = datetime.now()
-    timestamps = [(now - timedelta(minutes=i)).strftime('%Y-%m-%d %H:%M:%S') for i in range(10)][::-1]
-    prices = [random.uniform(400, 450) for _ in range(10)]
+    symbol = request.args.get('symbol', 'SPY')  # Default to SPY if no symbol is provided
+    duration = request.args.get('duration', '1 D')  # Default to 1 day if no duration is provided
+    if(duration != '1 D'):
+        duration += ' D'  # Default to 5 days if not 1 day
+    # Use timezone from .env
+    app_timezone = timezone(APP_TIMEZONE)
+    now = datetime.now(app_timezone)  # Current time in the specified timezone
+
+    ib_client = IBClient()
+    data = ib_client.fetch_historical_data(symbol, duration=duration, bar_size='1 min')
+
+    if data.empty:
+        return jsonify({'timestamps': [], 'prices': []})  # Return empty data if no bars are fetched
+
+    # Convert timestamps to the specified timezone
+    app_timezone = timezone(APP_TIMEZONE)
+    def ensure_timezone_aware(ts):
+        if ts.tzinfo is None:
+            return ts.tz_localize('UTC').tz_convert(app_timezone)
+        return ts.tz_convert(app_timezone)
+
+    data['timestamp'] = pd.to_datetime(data['timestamp']).apply(ensure_timezone_aware)
+
+    # Extract timestamps and prices
+    timestamps = data['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S').tolist()
+    prices = data['close'].tolist()
     return jsonify({'timestamps': timestamps, 'prices': prices})
 
 if __name__ == '__main__':

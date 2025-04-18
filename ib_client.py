@@ -7,6 +7,7 @@ from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from threading import Thread
 import random
+import asyncio  # Add this import
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,12 @@ class IBClient:
         self.data_store = MarketDataStore()
 
     def connect(self, retries=3, delay=5):
+        # Ensure an asyncio event loop is set for the current thread
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+
         if self.is_connected():
             logging.info("Already connected to IB API.")
             return
@@ -73,6 +80,11 @@ class IBClient:
             whatToShow='TRADES',
             useRTH=True
         )
+
+        if not data:
+            logging.warning(f"No data returned for {symbol} with duration {duration} and bar size {bar_size}.")
+            return pd.DataFrame()  # Return an empty DataFrame if no data is fetched
+
         logging.info(f"Fetched {len(data)} bars for {symbol} with duration {duration} and bar size {bar_size}.")
         time.sleep(1)  # Handle pacing limits
         df = pd.DataFrame([{
@@ -164,3 +176,10 @@ class IBClient:
 
         thread = Thread(target=update_chart, daemon=True)
         thread.start()
+
+    def get_available_symbols(self):
+        """
+        Return a list of available stock symbols.
+        """
+        # Example: Replace this with actual logic to fetch symbols from IBKR or a predefined list
+        return ['SPY', 'QQQ', 'AAPL', 'MSFT', 'GOOGL']

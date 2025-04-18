@@ -6,21 +6,50 @@
     <title>Live SPY Chart</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script> <!-- Add this line -->
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px; /* Set a maximum width for the chart */
+            margin: 0 auto; /* Center the chart horizontally */
+        }
+        canvas {
+            width: 100% !important; /* Make the canvas responsive */
+            height: auto !important; /* Adjust height automatically */
+        }
+    </style>
 </head>
 <body>
     <div class="container mt-5">
-        <h1 class="text-center">Live SPY Chart</h1>
-        <canvas id="spyChart"></canvas>
+        <h1 class="text-center">Live Stock Chart</h1>
+        <div class="mb-3">
+            <label for="symbolSelect" class="form-label">Select Stock Symbol:</label>
+            <select id="symbolSelect" class="form-select"></select>
+        </div>
+        <div class="mb-3">
+            <label for="durationSelect" class="form-label">Select Duration (Days):</label>
+            <select id="durationSelect" class="form-select">
+                <option value="1">1 Day</option>
+                <option value="5">5 Days</option>
+                <option value="10">10 Days</option>
+                <option value="30">30 Days</option>
+            </select>
+        </div>
+        <div class="chart-container">
+            <canvas id="spyChart"></canvas>
+        </div>
     </div>
     <script>
+        const symbolSelect = document.getElementById('symbolSelect');
+        const durationSelect = document.getElementById('durationSelect');
         const ctx = document.getElementById('spyChart').getContext('2d');
         const spyChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: [], // Time labels will be dynamically updated
+                labels: [],
                 datasets: [{
-                    label: 'SPY Price',
-                    data: [], // Price data will be dynamically updated
+                    label: 'Stock Price',
+                    data: [],
                     borderColor: 'rgba(75, 192, 192, 1)',
                     borderWidth: 2,
                     fill: false
@@ -29,21 +58,39 @@
             options: {
                 responsive: true,
                 scales: {
-                    x: {
-                        type: 'time',
-                        time: {
-                            unit: 'minute'
+                    x: { 
+                        type: 'time', 
+                        time: { 
+                            unit: 'minute', 
+                            tooltipFormat: 'MMM d, yyyy, h:mm a', // Format for tooltips
+                            displayFormats: { minute: 'MMM d, h:mm a' } 
+                        },
+                        adapters: {
+                            date: {
+                                timeZone: 'America/New_York' // Set time zone to Eastern Time (USA)
+                            }
                         }
                     },
-                    y: {
-                        beginAtZero: false
-                    }
+                    y: { beginAtZero: false }
                 }
             }
         });
 
-        function updateChart() {
-            fetch('/api/spy-data')
+        function fetchSymbols() {
+            fetch('/api/available-symbols')
+                .then(response => response.json())
+                .then(data => {
+                    data.symbols.forEach(symbol => {
+                        const option = document.createElement('option');
+                        option.value = symbol;
+                        option.textContent = symbol;
+                        symbolSelect.appendChild(option);
+                    });
+                });
+        }
+
+        function updateChart(symbol, duration) {
+            fetch(`/api/spy-data?symbol=${symbol}&duration=${duration}`)
                 .then(response => response.json())
                 .then(data => {
                     spyChart.data.labels = data.timestamps;
@@ -52,8 +99,27 @@
                 });
         }
 
-        setInterval(updateChart, 1000); // Update chart every 5 seconds
-        // updateChart();
+        symbolSelect.addEventListener('change', () => {
+            const selectedSymbol = symbolSelect.value;
+            const selectedDuration = durationSelect.value;
+            updateChart(selectedSymbol, selectedDuration);
+        });
+
+        durationSelect.addEventListener('change', () => {
+            const selectedSymbol = symbolSelect.value;
+            const selectedDuration = durationSelect.value;
+            updateChart(selectedSymbol, selectedDuration);
+        });
+
+        // Initialize
+        fetchSymbols();
+        setInterval(() => {
+            const selectedSymbol = symbolSelect.value;
+            const selectedDuration = durationSelect.value;
+            if (selectedSymbol) {
+                updateChart(selectedSymbol, selectedDuration);
+            }
+        }, 60000); // Update every 5 seconds
     </script>
 </body>
 </html>

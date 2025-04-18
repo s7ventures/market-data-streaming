@@ -4,6 +4,7 @@ import requests  # Import requests to fetch live data
 from datetime import datetime
 from influxdb_client_3 import InfluxDBClient3, Point
 from dotenv import load_dotenv  # Import dotenv to load environment variables
+from pytz import timezone  # Add this import
 
 # Load environment variables from .env file
 load_dotenv()
@@ -66,9 +67,11 @@ def aggregate_to_daily(data):
     """
     Aggregates minute-level data into daily candles.
     """
+    eastern = timezone('America/New_York')  # Define the time zone
     daily_data = {}
     for point in data:
-        date = datetime.fromisoformat(point["timestamp"]).date()
+        # Parse timestamp with America/New_York time zone
+        date = datetime.fromisoformat(point["timestamp"]).astimezone(eastern).date()
         if date not in daily_data:
             daily_data[date] = {
                 "open": point["open"],

@@ -102,7 +102,7 @@ class IBClient:
 
     def fetch_live_data(self, symbol='SPY', duration='1 D', bar_size='1 min'):
         """
-        Fetch live data for a symbol and return a DataFrame.
+        Fetch live minute-level data for a symbol and write it to InfluxDB.
         """
         self.connect()
         contract = Stock(symbol, 'SMART', 'USD')
@@ -123,6 +123,24 @@ class IBClient:
             'close': bar.close,
             'volume': bar.volume
         } for bar in data])
+
+        # Write data to InfluxDB
+        from influxdb_client_3 import Point
+        from influxdb_handler import client, database  # Ensure influxdb_handler is imported
+
+        for _, row in df.iterrows():
+            point = (
+                Point("ohlcv")
+                .tag("symbol", symbol)
+                .field("open", row['open'])
+                .field("high", row['high'])
+                .field("low", row['low'])
+                .field("close", row['close'])
+                .field("volume", row['volume'])
+                .time(row['timestamp'])
+            )
+            client.write(database=database, record=point)
+
         return df
 
     def render_live_chart(self, symbol='SPY', update_interval=5):

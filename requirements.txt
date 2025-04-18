@@ -6,3 +6,4 @@ tinydb
 yfinance
 Flask
 plotly
+influxdb3-python

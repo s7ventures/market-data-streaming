@@ -9,6 +9,7 @@
 <body>
     <div class="container mt-5">
         <h1 class="text-center">OHLCV Candlestick Charts</h1>
+        <a href="{{ url_for('live_chart') }}" class="btn btn-primary mb-4">Go to Live SPY Chart</a>
         {% for figure in figures %}
         <div class="mb-5">
             {{ figure|safe }}

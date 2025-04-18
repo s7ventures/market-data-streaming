@@ -1,8 +1,10 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify, redirect, url_for
 import pandas as pd
 from ib_client import IBClient
 import asyncio
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
+import random
 
 app = Flask(__name__)
 
@@ -78,6 +80,18 @@ def index():
 
     # Render the HTML template with the candlestick charts
     return render_template('index.html', figures=figures)
+
+@app.route('/live')
+def live_chart():
+    return render_template('live_chart.html')
+
+@app.route('/api/spy-data')
+def spy_data():
+    # Simulated data for SPY prices
+    now = datetime.now()
+    timestamps = [(now - timedelta(minutes=i)).strftime('%Y-%m-%d %H:%M:%S') for i in range(10)][::-1]
+    prices = [random.uniform(400, 450) for _ in range(10)]
+    return jsonify({'timestamps': timestamps, 'prices': prices})
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5433)

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live SPY Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script> <!-- Add this line -->
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Live SPY Chart</h1>
+        <canvas id="spyChart"></canvas>
+    </div>
+    <script>
+        const ctx = document.getElementById('spyChart').getContext('2d');
+        const spyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // Time labels will be dynamically updated
+                datasets: [{
+                    label: 'SPY Price',
+                    data: [], // Price data will be dynamically updated
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'minute'
+                        }
+                    },
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        });
+
+        function updateChart() {
+            fetch('/api/spy-data')
+                .then(response => response.json())
+                .then(data => {
+                    spyChart.data.labels = data.timestamps;
+                    spyChart.data.datasets[0].data = data.prices;
+                    spyChart.update();
+                });
+        }
+
+        setInterval(updateChart, 1000); // Update chart every 5 seconds
+        // updateChart();
+    </script>
+</body>
+</html>

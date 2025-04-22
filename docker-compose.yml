@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app:app
+      - FLASK_RUN_HOST=0.0.0.0
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - IBKR_HOST=${IBKR_HOST}
+      - IBKR_PORT=${IBKR_PORT}
+      - IBKR_CLIENT_ID=${IBKR_CLIENT_ID}
+    volumes:
+      - .:/app

@@ -3,18 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OHLCV Candlestick Charts</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>Stock Data Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="container mt-5">
-        <h1 class="text-center">OHLCV Candlestick Charts</h1>
-        <a href="{{ url_for('live_chart') }}" class="btn btn-primary mb-4">Go to Live SPY Chart</a>
-        {% for figure in figures %}
-        <div class="mb-5">
-            {{ figure|safe }}
-        </div>
-        {% endfor %}
-    </div>
+    <h1>Stock Data Chart</h1>
+    <label for="stock-select">Select Stock:</label>
+    <select id="stock-select"></select>
+    <canvas id="stock-chart" width="800" height="400"></canvas>
+
+    <script>
+        // Initialize the chart with empty data
+        const ctx = document.getElementById('stock-chart').getContext('2d');
+        let chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // X-axis labels (time)
+                datasets: [{
+                    label: 'Close Price', // Dataset label
+                    data: [], // Y-axis data (close prices)
+                    borderColor: 'rgba(75, 192, 192, 1)', // Line color
+                    borderWidth: 2, // Line width
+                    fill: false // Disable area fill
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { title: { display: true, text: 'Time' } }, // X-axis title
+                    y: { title: { display: true, text: 'Price' } } // Y-axis title
+                }
+            }
+        });
+
+        // Fetch available symbols dynamically
+        async function fetchSymbols() {
+            try {
+                const response = await fetch('/api/symbols');
+                const symbols = await response.json();
+                const stockSelect = document.getElementById('stock-select');
+                stockSelect.innerHTML = ''; // Clear existing options
+
+                symbols.forEach(symbol => {
+                    const option = document.createElement('option');
+                    option.value = symbol.value;
+                    option.textContent = symbol.label;
+                    stockSelect.appendChild(option);
+                });
+
+                // Trigger initial data load for the first stock
+                stockSelect.dispatchEvent(new Event('change'));
+            } catch (error) {
+                console.error('Error fetching symbols:', error);
+            }
+        }
+
+        // Event listener for stock selection dropdown
+        document.getElementById('stock-select').addEventListener('change', async (event) => {
+            const symbol = event.target.value; // Get selected stock symbol
+            try {
+                const response = await fetch(`/api/data?symbol=${symbol}`); // Fetch data from API
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Update chart with new data
+                    chart.data.labels = data.map(d => new Date(d.time).toLocaleString());
+                    chart.data.datasets[0].data = data.map(d => d.close);
+                    chart.update();
+                } else {
+                    alert(data.error || 'Failed to fetch data'); // Show error message
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error); // Log error to console
+            }
+        });
+
+        // Fetch symbols on page load
+        fetchSymbols();
+    </script>
 </body>
 </html>

@@ -1,9 +1,4 @@
 ib_insync
-boto3
+influxdb-client
 python-dotenv
-pandas
-tinydb
-yfinance
-Flask
-plotly
-influxdb3-python
+flask

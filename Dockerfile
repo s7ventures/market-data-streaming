@@ -1,42 +1,32 @@
-FROM python:3.10
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
 
-WORKDIR /app
+# Set the working directory in the container
+WORKDIR /app_ibkr
 
-# 1. Install system dependencies (for build + git + autoconf)
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    wget \
-    git \
-    autoconf \
-    automake \
-    libtool \
-    && rm -rf /var/lib/apt/lists/*
+# Install cron and other dependencies
+RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
 
-# 2. Clone and build the latest TA-Lib from GitHub
-RUN git clone https://github.com/TA-Lib/ta-lib.git && \
-    cd ta-lib && \
-    chmod +x autogen.sh && \
-    ./autogen.sh && \
-    ./configure --prefix=/usr/local --build=aarch64-unknown-linux-gnu --host=aarch64-unknown-linux-gnu && \
-    make && \
-    make install && \
-    ldconfig && \
-    cd .. && rm -rf ta-lib
+# Copy the requirements file into the container
+COPY requirements.txt .
 
-# 3. Update environment variables so Python & linker can find TA-Lib
-ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
-ENV CFLAGS="-I/usr/local/include"
-ENV LDFLAGS="-L/usr/local/lib"
+# Install the required Python packages
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. Copy your project files
+# Copy the rest of the application code into the container
 COPY . .
 
-# 5. Upgrade pip
-RUN pip install --upgrade pip
+# Add the cron job
+RUN echo "* * * * * python /app_ibkr/fetch_and_write.py >> /var/log/cron.log 2>&1" > /etc/cron.d/fetch_and_write_cron
 
-# 6. Install Python dependencies (including ta-lib)
-RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+# Give execution rights on the cron job
+RUN chmod 0644 /etc/cron.d/fetch_and_write_cron
 
-# 7. Launch FastAPI on port 8001
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8001"]
+# Apply the cron job
+RUN crontab /etc/cron.d/fetch_and_write_cron
+
+# Expose the port the app runs on
+EXPOSE 5000
+
+# Start cron and Flask
+CMD ["sh", "-c", "cron && flask run --host=0.0.0.0 --port=5000"]

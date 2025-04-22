@@ -1,69 +1,90 @@
 import os
-from influxdb_client_3 import InfluxDBClient3
+from datetime import datetime, timezone
 from dotenv import load_dotenv
+from influxdb_client_3 import InfluxDBClient3
 
-# Load environment variables from .env file
+# Load .env
 load_dotenv()
 
-# Load InfluxDB configuration
+# Config
 token = os.getenv("INFLUXDB_TOKEN")
 org = "US East - Prod"
 host = "https://us-east-1-1.aws.cloud2.influxdata.com"
-database = os.getenv("INFLUXDB_BUCKET", "spy_ohlcv_1m")  # Default to "spy_ohlcv_1m" if not set
+database = os.getenv("INFLUXDB_BUCKET", "spy_ohlcv_1m")
 
-# Debug: Print loaded environment variables
 print(f"Loaded INFLUXDB_TOKEN: {'Set' if token else 'Not Set'}")
 print(f"Loaded INFLUXDB_BUCKET: {database}")
 
-# Validate database configuration
 if not database:
-    raise ValueError("Database (bucket) name is not set. Please check the 'INFLUXDB_BUCKET' environment variable.")
+    raise ValueError("Database (bucket) name is not set.")
 
-# Initialize InfluxDB client
-client = InfluxDBClient3(host=host, token=token, org=org)
+client = InfluxDBClient3(
+    host=host,
+    token=token,
+    org=org,
+    database=database
+)
 
 def test_bucket_access():
     """
-    Test if the bucket is accessible.
+    Check if the bucket is accessible by querying one row from any table.
     """
-    query = f"""
-    from(bucket: "{database}")
-        |> range(start: -1m)
-        |> limit(n: 1)
-    """
+    query = "SELECT * FROM ohlcv LIMIT 1"
     print(f"Testing access to bucket: {database}")
     try:
-        result = client.query(query=query)
-        if not result:
-            print(f"Bucket '{database}' is accessible but contains no data.")
-        else:
+        results = client.query(query=query)
+        for _ in results:
             print(f"Bucket '{database}' is accessible.")
+            return
+        print(f"Bucket '{database}' is accessible but empty.")
     except Exception as e:
         print(f"Error accessing bucket '{database}': {e}")
 
 def print_spy_data():
     """
-    Query and print SPY data from the InfluxDB database.
+    Query and print OHLCV data for SPY from the last 1 day.
     """
-    query = f"""
-    from(bucket: "{database}")
-        |> range(start: -1d)
-        |> filter(fn: (r) => r._measurement == "ohlcv" and r.symbol == "SPY")
-        |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-        |> sort(columns: ["_time"])
+    query = """
+    SELECT *
+    FROM ohlcv
+    WHERE symbol = 'SPY' AND time >= now() - interval '1 day'
+    ORDER BY time ASC
     """
-    print(f"Executing query: {query}")
-    print("Fetching SPY data...")
+    print(f"Executing SQL query:\n{query}")
     try:
-        result = client.query(query=query)
-        if not result:
-            print("No data found for SPY in the specified time range.")
-        for record in result:
+        results = client.query(query=query)
+        for record in results:
             print(record)
     except Exception as e:
         print(f"Error querying InfluxDB: {e}")
 
+def write_sample_data():
+    """
+    Write one OHLCV data point with symbol=SPY.
+    Ensure `volume` is written as a float.
+    """
+    point = {
+        "measurement": "ohlcv",
+        "tags": {"symbol": "SPY"},
+        "fields": {
+            "open": 456.2,
+            "high": 457.1,
+            "low": 455.8,
+            "close": 456.9,
+            "volume": float(900123)  # Force float
+        },
+        "time": datetime.now(timezone.utc)  # timezone-aware UTC
+    }
+
+    try:
+        client.write(record=point)
+        print("Wrote 1 OHLCV point.")
+    except Exception as e:
+        print(f"Write error: {e}")
+
 if __name__ == "__main__":
     print("Fetching SPY data from InfluxDB...")
-    test_bucket_access()  # Test bucket access
+    test_bucket_access()
     print_spy_data()
+    print("Writing sample SPY OHLCV data...")
+    write_sample_data()

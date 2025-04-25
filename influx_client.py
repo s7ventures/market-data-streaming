@@ -22,6 +22,13 @@ client = InfluxDBClient(
     org=INFLUXDB_ORG
 )
 
+# Validate InfluxDB client initialization
+if not INFLUXDB_HOST or not INFLUXDB_TOKEN or not INFLUXDB_ORG or not INFLUXDB_BUCKET:
+    logging.error("InfluxDB configuration is incomplete. Please check your environment variables.")
+    raise ValueError("InfluxDB configuration is incomplete.")
+
+logging.info(f"InfluxDB client initialized with host: {INFLUXDB_HOST}, org: {INFLUXDB_ORG}, bucket: {INFLUXDB_BUCKET}")
+
 def query_stock_data(symbol, range_start='-7d'):
     """
     Query historical stock data for a given symbol from InfluxDB.
@@ -58,21 +65,38 @@ def query_stock_data(symbol, range_start='-7d'):
         logging.info(f"Queried {len(data)} records for symbol: {symbol}")
         return data
     except Exception as e:
-        logging.error(f"Failed to query stock data for symbol: {symbol}: {e}", exc_info=True)
+        logging.error(f"Unexpected error querying stock data for symbol: {symbol}: {e}", exc_info=True)
         raise
 
 def write_points(points):
     """
-    Write a list of points to InfluxDB.
-
-    Args:
-        points (list): A list of data points to write to InfluxDB.
+    Write data points to the InfluxDB bucket.
     """
-    logging.debug(f"Writing {len(points)} points to InfluxDB.")
     try:
+        logging.debug(f"Attempting to write points to InfluxDB bucket '{INFLUXDB_BUCKET}' in org '{INFLUXDB_ORG}'.")
+        logging.debug(f"Points to write: {points}")
         write_api = client.write_api()
         write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=points)
         logging.info(f"Successfully wrote {len(points)} points to InfluxDB.")
     except Exception as e:
         logging.error(f"Failed to write points to InfluxDB: {e}", exc_info=True)
-        raise RuntimeError(f"Failed to write points to InfluxDB: {e}")
+    finally:
+        write_api.__del__()  # Ensure the write API is closed properly
+
+def clear_bucket():
+    """
+    Clear all data from the InfluxDB bucket.
+    """
+    try:
+        logging.info(f"Clearing all data from bucket: {INFLUXDB_BUCKET}")
+        delete_api = client.delete_api()
+        delete_api.delete(
+            start="1970-01-01T00:00:00Z",
+            stop="2100-01-01T00:00:00Z",
+            bucket=INFLUXDB_BUCKET,
+            org=INFLUXDB_ORG,
+            predicate=''
+        )
+        logging.info("All data cleared from the bucket successfully.")
+    except Exception as e:
+        logging.error(f"Failed to clear data from the bucket: {e}", exc_info=True)

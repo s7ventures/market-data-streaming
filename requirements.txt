@@ -2,3 +2,4 @@ ib_insync
 influxdb-client
 python-dotenv
 flask
+requests

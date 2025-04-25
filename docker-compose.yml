@@ -15,3 +15,19 @@ services:
       - IBKR_CLIENT_ID=${IBKR_CLIENT_ID}
     volumes:
       - .:/app
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_ADMIN_USER=${INFLUXDB_ADMIN_USER}
+      - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_ADMIN_PASSWORD}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+
+volumes:
+  influxdb_data:

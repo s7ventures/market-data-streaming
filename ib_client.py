@@ -111,6 +111,5 @@ def get_symbols_for_frontend():
     """
     Return a list of stock symbols formatted for the frontend, including a default "Please select" option.
     """
-    symbols = [{"value": "", "label": "Please select"}]
-    symbols += [{"value": symbol, "label": symbol} for symbol in get_symbols()]
+    symbols = [{"value": symbol, "label": symbol} for symbol in get_symbols()]
     return symbols
